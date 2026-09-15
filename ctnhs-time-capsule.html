@@ -225,9 +225,6 @@
     padding:13px 15px;
     transition:border-color .25s ease, box-shadow .25s ease;
   }
-  .field select{
-    appearance:auto;
-  }
   .field textarea{
     font-family:'Cormorant Garamond', serif;
     font-size:18px;
@@ -235,13 +232,13 @@
     resize:vertical;
     min-height:260px;
   }
-  .field input:focus, .field textarea:focus{
+  .field input:focus, .field textarea:focus, .field select:focus{
     outline:none;
     border-color:var(--gold);
     box-shadow:0 0 0 3px rgba(201,166,107,0.18);
   }
   .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-  .field.error input, .field.error textarea{ border-color:var(--error); }
+  .field.error input, .field.error textarea, .field.error select{ border-color:var(--error); }
   .field-error-msg{ font-size:12.5px; color:var(--error); margin-top:7px; display:none; }
   .field.error .field-error-msg{ display:block; }
 
@@ -394,6 +391,102 @@
 
   .loading-line{ font-size:13.5px; color:var(--cocoa); font-style:italic; font-family:'Cormorant Garamond', serif; }
 
+  /* ---------- STATS LINE ---------- */
+  .stats-line{
+    font-size:13px; color:var(--cocoa); font-style:italic;
+    font-family:'Cormorant Garamond', serif; margin-top:14px;
+  }
+
+  /* ---------- CAPSULE ID ---------- */
+  .capsule-id-badge{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'Jost', sans-serif; font-size:13px; letter-spacing:0.12em;
+    color:var(--brown); background:var(--beige);
+    padding:9px 20px; border-radius:100px; margin-bottom:6px;
+  }
+  .capsule-id-chip{
+    font-family:'Jost', sans-serif; font-size:10.5px; letter-spacing:0.08em;
+    color:var(--cocoa); background:var(--cream-deep);
+    padding:3px 10px; border-radius:100px; white-space:nowrap;
+  }
+  .wax-dot{
+    display:inline-block; width:9px; height:9px; border-radius:50%;
+    margin-right:8px; flex-shrink:0; box-shadow:0 1px 2px rgba(0,0,0,0.25);
+  }
+
+  /* ---------- SEALING ANIMATION ---------- */
+  .seal-overlay{
+    position:fixed; inset:0; z-index:80;
+    background:rgba(58,46,38,0.6);
+    display:none; align-items:center; justify-content:center;
+  }
+  .seal-overlay.active{ display:flex; }
+  .seal-stage{
+    position:relative; width:280px; height:280px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+  }
+  .seal-paper{
+    position:absolute; top:40px;
+    width:140px; height:96px;
+    background:var(--paper); border:1px solid var(--line); border-radius:3px;
+    box-shadow:0 14px 30px rgba(0,0,0,0.25);
+    transform-origin:center bottom;
+    transition: transform .6s cubic-bezier(.6,.15,.3,1), opacity .6s ease;
+  }
+  .seal-overlay.fold .seal-paper{
+    transform: scaleY(0.12) translateY(30px);
+    opacity:0;
+  }
+  .seal-env{
+    position:absolute; top:60px;
+    width:160px; height:108px;
+    background:linear-gradient(135deg,#FDFBF6,#EFE6D3);
+    border:1.4px solid var(--brown); border-radius:4px;
+    opacity:0; transform:scale(0.9);
+    transition: opacity .5s ease, transform .5s ease;
+  }
+  .seal-overlay.close .seal-env{ opacity:1; transform:scale(1); }
+  .seal-env-flap{
+    position:absolute; inset:0;
+    background:linear-gradient(135deg,#F5ECD9,#E2D3B4);
+    clip-path:polygon(0 0, 50% 58%, 100% 0);
+    border-bottom:1px solid var(--brown);
+    transform-origin:top center;
+    transform: rotateX(100deg);
+    transition: transform .5s cubic-bezier(.34,1.15,.4,1);
+  }
+  .seal-overlay.close .seal-env-flap{ transform: rotateX(0deg); }
+  .seal-env-wax{
+    position:absolute; left:50%; top:50%;
+    width:34px; height:34px; margin:-17px 0 0 -17px;
+    border-radius:50%;
+    background: radial-gradient(circle at 38% 34%, #D68A55, #8F5730);
+    box-shadow:0 4px 10px rgba(0,0,0,0.35);
+    opacity:0; transform:scale(0);
+  }
+  .seal-overlay.stamp .seal-env-wax{
+    animation: stampWax .5s cubic-bezier(.34,1.6,.5,1) forwards;
+  }
+  @keyframes stampWax{
+    0%{ opacity:0; transform:scale(0) rotate(0deg); }
+    55%{ opacity:1; transform:scale(1.3) rotate(var(--seal-rot, 0deg)); }
+    100%{ opacity:1; transform:scale(1) rotate(var(--seal-rot, 0deg)); }
+  }
+  .seal-caption{
+    margin-top:22px;
+    font-family:'Cormorant Garamond', serif; font-style:italic;
+    color:var(--paper); font-size:18px; letter-spacing:0.03em; text-align:center;
+    transition: font-size .3s ease, letter-spacing .3s ease;
+  }
+  .seal-overlay.done .seal-caption{
+    font-style:normal; font-size:21px; letter-spacing:0.22em; text-transform:uppercase;
+  }
+  .seal-id-reveal{
+    margin-top:8px; font-size:12.5px; letter-spacing:0.1em;
+    color:var(--gold-soft); opacity:0; transition:opacity .4s ease;
+  }
+  .seal-overlay.done .seal-id-reveal{ opacity:1; }
+
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important; animation:none !important;}
     .reveal{opacity:1;}
@@ -430,7 +523,8 @@
         <p class="lede reveal r3">A little piece of who you are today, waiting for you in the future.</p>
         <div class="hero-actions reveal r4">
           <button class="btn solid" onclick="showView('write')">Write Your Letter</button>
-          <p class="fine-line">Write it. Seal it. Live your life. We'll deliver it when the time is right.</p>
+          <p class="fine-line">Write it. Seal it. Live your life. Come back when the time is right.</p>
+          <p class="stats-line" id="home-stats-line">Loading capsule stats…</p>
         </div>
       </div>
 
@@ -527,9 +621,9 @@
             <path d="M17 4v10l7 4"/>
             <circle cx="17" cy="17" r="13"/>
           </svg>
-          <span class="num">03 — RECEIVE</span>
-          <h3>Receive</h3>
-          <p>We'll deliver your letter when the time is right.</p>
+          <span class="num">03 — RETURN</span>
+          <h3>Return</h3>
+          <p>Come back years later and meet the person you used to be.</p>
         </div>
       </div>
     </div>
@@ -554,15 +648,33 @@
 
     <div class="letter-layout">
       <form class="paper-card" id="letter-form" novalidate>
-        <div class="field" id="field-name">
-          <label for="input-name">Your name</label>
-          <input type="text" id="input-name" placeholder="e.g. Mika Reyes" maxlength="60">
+        <div class="field" id="field-delivery">
+          <label for="input-delivery">How should we deliver it?</label>
+          <select id="input-delivery">
+            <option value="email">Email only</option>
+            <option value="phone">Phone (SMS) only</option>
+            <option value="both">Email and phone</option>
+          </select>
+          <div class="hint">This just decides which field below is required for now — actual delivery isn't wired up yet, see the note on the right.</div>
         </div>
 
         <div class="field-row">
-          <div class="field" id="field-grade">
-            <label for="input-grade">Grade / section (optional)</label>
-            <input type="text" id="input-grade" placeholder="e.g. Grade 10 - Rizal" maxlength="60">
+          <div class="field" id="field-email">
+            <label for="input-email">Email address</label>
+            <input type="email" id="input-email" placeholder="vince@example.com">
+            <div class="field-error-msg">Please enter a valid email.</div>
+          </div>
+          <div class="field" id="field-phone">
+            <label for="input-phone">Phone number</label>
+            <input type="tel" id="input-phone" placeholder="09xx xxx xxxx">
+            <div class="field-error-msg">Please enter a phone number.</div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field" id="field-batch">
+            <label for="input-batch">Batch</label>
+            <input type="text" id="input-batch" placeholder="e.g. Grade-12 Batch 2027" maxlength="40">
           </div>
           <div class="field" id="field-date">
             <label for="input-date">Open on this date</label>
@@ -582,26 +694,6 @@
           <div class="field-error-msg">Write something before sealing it.</div>
         </div>
 
-        <div class="field" id="field-delivery">
-          <label for="input-delivery">How should we deliver your letter?</label>
-          <select id="input-delivery">
-            <option value="email">Email only</option>
-            <option value="phone">Phone number only</option>
-            <option value="both">Email + phone number</option>
-          </select>
-          <div class="field-error-msg">Choose at least one delivery contact.</div>
-        </div>
-
-        <div class="field" id="field-email">
-          <label for="input-email">Email address</label>
-          <input type="email" id="input-email" placeholder="e.g. you@example.com" maxlength="120">
-        </div>
-
-        <div class="field" id="field-phone" style="display:none;">
-          <label for="input-phone">Phone number</label>
-          <input type="tel" id="input-phone" placeholder="e.g. 09XXXXXXXXX" maxlength="20">
-        </div>
-
         <div class="form-actions">
           <button type="submit" class="btn solid">Seal It</button>
           <button type="button" class="btn ghost" onclick="showView('home', true)">Cancel</button>
@@ -610,7 +702,8 @@
 
       <div class="side-note">
         <h4>Before you seal it</h4>
-        <p>Once sealed, your letter is locked until the date you choose — we'll deliver it to the contact you provide.</p>
+        <p>Once sealed, your letter is locked until the date you choose — it stays saved right here so you can come back and open it later.</p>
+        <p>We're also collecting your email/phone now so real automatic delivery (no need to remember this site) can be switched on later, without asking everyone to resubmit.</p>
         <p>Nobody else reads it. Write it for you, not for anyone grading it.</p>
         <p>Not sure what to write? Try: what today looks like, what you're scared of, what you're proud of, or a question for your future self.</p>
       </div>
@@ -625,14 +718,17 @@
       <ellipse cx="210" cy="308" rx="150" ry="14" fill="url(#gShadow)"/>
       <rect x="30" y="70" width="360" height="230" rx="6" fill="url(#gEnvBody)" stroke="#5C4433" stroke-width="1.4"/>
       <path d="M30 76 L210 190 L390 76 Z" fill="url(#gEnvFlap)" stroke="#5C4433" stroke-width="1.4" stroke-linejoin="round"/>
+      <g id="sealed-wax-seal">
       <circle cx="210" cy="176" r="26" fill="url(#gWax)"/>
       <circle cx="210" cy="176" r="26" fill="none" stroke="#8F5730" stroke-width="1" opacity="0.6"/>
       <path d="M210 164 L214 172 L223 173 L216 179 L218 188 L210 183 L202 188 L204 179 L197 173 L206 172 Z" fill="#F3E4C8" opacity="0.9"/>
+    </g>
     </svg>
     <div class="kicker">SEALED</div>
     <h2 class="headline">It's on its way to you.</h2>
-    <p class="lede">Your letter is safely tucked away. You won't be able to open it until —</p>
+    <p class="lede" id="sealed-method-line">Your letter is safely tucked away. You won't be able to open it until —</p>
     <div class="sealed-date" id="sealed-date-display">—</div>
+    <div class="capsule-id-badge" id="sealed-capsule-id">CTNHS-000000</div>
     <div class="sealed-actions">
       <button class="btn solid" onclick="showView('capsules')">Go to My Capsules</button>
       <button class="btn ghost" onclick="showView('write')">Write Another</button>
@@ -644,9 +740,10 @@
 <section class="view" id="view-capsules">
   <div class="page-section wrap">
     <div class="page-head">
-      <div class="kicker reveal r1" style="margin-bottom:16px;">STEP THREE — RECEIVE</div>
+      <div class="kicker reveal r1" style="margin-bottom:16px;">STEP THREE — RETURN</div>
       <h2 class="headline">My Capsules</h2>
-      <p>Every letter you've sealed lives here. This is your record of scheduled deliveries — your letter will be sent to the contact you provide on its date.</p>
+      <p>Every letter you've sealed lives here. Locked ones stay locked until their date — once it passes, you can open and read them.</p>
+      <p class="stats-line" id="capsules-stats-line"></p>
     </div>
 
     <div id="capsules-loading" class="loading-line">Gathering your letters…</div>
@@ -666,6 +763,18 @@
   </div>
 </footer>
 
+<div class="seal-overlay" id="seal-overlay" aria-hidden="true">
+  <div class="seal-stage">
+    <div class="seal-paper" id="seal-paper"></div>
+    <div class="seal-env" id="seal-env">
+      <div class="seal-env-flap" id="seal-env-flap"></div>
+      <div class="seal-env-wax" id="seal-env-wax"></div>
+    </div>
+    <p class="seal-caption" id="seal-caption">Folding your letter…</p>
+    <p class="seal-id-reveal" id="seal-id-reveal"></p>
+  </div>
+</div>
+
 <script>
   /* ---------- VIEW NAVIGATION ---------- */
   function showView(name, replayHome){
@@ -677,11 +786,14 @@
     if(name === 'capsules'){
       document.getElementById('letter-reveal-slot').innerHTML = '';
       renderCapsules();
+      updateStatsDisplay();
     }
     if(name === 'write'){
       clearFormErrors();
+      updateDeliveryFieldVisibility();
     }
     if(name === 'home'){
+      updateStatsDisplay();
       const steps = document.querySelectorAll('#view-home .step');
       steps.forEach(s => s.classList.remove('in-view'));
       setTimeout(()=> observeSteps(), 50);
@@ -727,6 +839,61 @@
   function isUnlocked(iso){
     return daysUntil(iso) <= 0;
   }
+  function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+  function deliveryLabel(method){
+    if(method === 'email') return 'email';
+    if(method === 'phone') return 'phone';
+    return 'email and phone';
+  }
+  function generateCapsuleId(){
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for(let i=0;i<6;i++){ code += chars[Math.floor(Math.random()*chars.length)]; }
+    return 'CTNHS-' + code;
+  }
+  function hashString(str){
+    let h = 0;
+    for(let i=0;i<str.length;i++){ h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+    return h;
+  }
+  function sealVariant(capsuleId){
+    const h = hashString(capsuleId);
+    return { hue: h % 40, rotate: (h % 17) - 8 };
+  }
+  function waxColor(hue){
+    return 'hsl(' + (22 + (hue % 40)) + ', 55%, 45%)';
+  }
+
+  /* ---------- SHARED COMMUNITY STATS (numbers only, no letter content) ---------- */
+  async function getSharedCounter(key){
+    try{
+      const res = await window.storage.get(key, true);
+      return res && res.value ? (parseInt(res.value, 10) || 0) : 0;
+    }catch(e){ return 0; }
+  }
+  async function bumpSharedCounter(key){
+    try{
+      const current = await getSharedCounter(key);
+      await window.storage.set(key, String(current + 1), true);
+    }catch(e){ /* stats are best-effort; never block sealing or opening */ }
+  }
+  async function updateStatsDisplay(){
+    const sealed = await getSharedCounter('stats:total-sealed');
+    const opened = await getSharedCounter('stats:total-opened');
+    const waiting = Math.max(sealed - opened, 0);
+    let text;
+    if(sealed === 0){
+      text = 'Be the first to seal a letter for your future self.';
+    } else {
+      text = sealed + ' student' + (sealed === 1 ? ' has' : 's have') + ' already sealed something for their future self' +
+        (waiting > 0 ? ' — ' + waiting + ' still waiting to be opened.' : '.');
+    }
+    const l1 = document.getElementById('home-stats-line');
+    const l2 = document.getElementById('capsules-stats-line');
+    if(l1) l1.textContent = text;
+    if(l2) l2.textContent = text;
+  }
+  updateStatsDisplay();
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, ch => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -736,25 +903,32 @@
   /* ---------- FORM HANDLING ---------- */
   const form = document.getElementById('letter-form');
   const inputDate = document.getElementById('input-date');
+  const inputDelivery = document.getElementById('input-delivery');
   inputDate.min = todayISO();
 
+  function updateDeliveryFieldVisibility(){
+    const method = inputDelivery.value;
+    document.getElementById('field-email').style.display = (method === 'phone') ? 'none' : '';
+    document.getElementById('field-phone').style.display = (method === 'email') ? 'none' : '';
+  }
+  inputDelivery.addEventListener('change', updateDeliveryFieldVisibility);
+  updateDeliveryFieldVisibility();
+
   function clearFormErrors(){
-    document.getElementById('field-date').classList.remove('error');
-    document.getElementById('field-body').classList.remove('error');
+    ['field-date','field-body','field-email','field-phone'].forEach(id => document.getElementById(id).classList.remove('error'));
   }
 
   form.addEventListener('submit', function(e){
     e.preventDefault();
     clearFormErrors();
 
-    const name = document.getElementById('input-name').value.trim();
-    const grade = document.getElementById('input-grade').value.trim();
+    const batch = document.getElementById('input-batch').value.trim();
     const date = document.getElementById('input-date').value;
-    const title = document.getElementById('input-title').value.trim() || 'Dear Future Me';
-    const body = document.getElementById('input-body').value.trim();
-    const deliveryMethod = document.getElementById('input-delivery').value;
+    const deliveryMethod = inputDelivery.value;
     const email = document.getElementById('input-email').value.trim();
     const phone = document.getElementById('input-phone').value.trim();
+    const title = document.getElementById('input-title').value.trim() || 'Dear Future Me';
+    const body = document.getElementById('input-body').value.trim();
 
     let hasError = false;
     if(!date || date < todayISO()){
@@ -765,33 +939,40 @@
       document.getElementById('field-body').classList.add('error');
       hasError = true;
     }
-
-    const needsEmail = deliveryMethod === 'email' || deliveryMethod === 'both';
-    const needsPhone = deliveryMethod === 'phone' || deliveryMethod === 'both';
-
-    document.getElementById('field-email').classList.remove('error');
-    document.getElementById('field-phone').classList.remove('error');
-
-    if(needsEmail && !email){
+    if((deliveryMethod === 'email' || deliveryMethod === 'both') && !isValidEmail(email)){
       document.getElementById('field-email').classList.add('error');
       hasError = true;
     }
-    if(needsPhone && !phone){
+    if((deliveryMethod === 'phone' || deliveryMethod === 'both') && !phone){
       document.getElementById('field-phone').classList.add('error');
       hasError = true;
     }
-
     if(hasError) return;
 
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sealing…';
 
-    sealCapsule({ name, grade, date, title, body, deliveryMethod, email, phone })
+    let sealedCapsule = null;
+
+    sealCapsule({ batch, date, deliveryMethod, email, phone, title, body })
+      .then((capsule)=>{
+        sealedCapsule = capsule;
+        return playSealAnimation(capsule);
+      })
       .then(()=>{
         document.getElementById('sealed-date-display').textContent = formatDate(date);
+        document.getElementById('sealed-method-line').textContent =
+          'Your letter is safely tucked away, and marked for delivery by ' + deliveryLabel(deliveryMethod) + '. You won\u2019t be able to open it until \u2014';
+        document.getElementById('sealed-capsule-id').textContent = sealedCapsule.capsuleId;
+        const sealEl = document.getElementById('sealed-wax-seal');
+        sealEl.style.transformOrigin = '210px 176px';
+        sealEl.style.transform = 'rotate(' + sealedCapsule.sealRotate + 'deg)';
+        sealEl.style.filter = 'hue-rotate(' + sealedCapsule.sealHue + 'deg)';
         form.reset();
         inputDate.min = todayISO();
+        updateDeliveryFieldVisibility();
+        updateStatsDisplay();
         showView('sealed');
       })
       .catch((err)=>{
@@ -804,31 +985,65 @@
       });
   });
 
-  /* ---------- DELIVERY CONTACT UI ---------- */
-  const deliverySelect = document.getElementById('input-delivery');
-  const emailField = document.getElementById('field-email');
-  const phoneField = document.getElementById('field-phone');
-
-  function syncDeliveryFields(){
-    const method = deliverySelect.value;
-    const showEmail = method === 'email' || method === 'both';
-    const showPhone = method === 'phone' || method === 'both';
-
-    emailField.style.display = showEmail ? 'block' : 'none';
-    phoneField.style.display = showPhone ? 'block' : 'none';
-
-    if(!showEmail){
-      document.getElementById('input-email').value = '';
-      emailField.classList.remove('error');
+  /**
+   * Plays the fold → seal → stamp animation. Skips straight through for
+   * people who have reduced motion enabled, so nothing ever blocks on it.
+   */
+  function playSealAnimation(capsule){
+    const overlay = document.getElementById('seal-overlay');
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduceMotion){
+      return Promise.resolve();
     }
-    if(!showPhone){
-      document.getElementById('input-phone').value = '';
-      phoneField.classList.remove('error');
-    }
+    return new Promise(resolve=>{
+      const caption = document.getElementById('seal-caption');
+      const idReveal = document.getElementById('seal-id-reveal');
+      const wax = document.getElementById('seal-env-wax');
+
+      overlay.classList.remove('fold','close','stamp','done');
+      wax.style.setProperty('--seal-rot', capsule.sealRotate + 'deg');
+      wax.style.filter = 'hue-rotate(' + capsule.sealHue + 'deg)';
+      caption.textContent = 'Folding your letter…';
+      idReveal.textContent = '';
+      overlay.classList.add('active');
+
+      requestAnimationFrame(()=>{
+        setTimeout(()=>{ overlay.classList.add('fold'); }, 60);
+        setTimeout(()=>{ overlay.classList.add('close'); caption.textContent = 'Sealing the envelope…'; }, 650);
+        setTimeout(()=>{ overlay.classList.add('stamp'); caption.textContent = 'Stamping your seal…'; }, 1250);
+        setTimeout(()=>{
+          overlay.classList.add('done');
+          caption.textContent = 'Sealed';
+          idReveal.textContent = capsule.capsuleId;
+        }, 1850);
+        setTimeout(()=>{
+          overlay.classList.remove('active');
+          resolve();
+        }, 2650);
+      });
+    });
   }
 
-  deliverySelect.addEventListener('change', syncDeliveryFields);
-  syncDeliveryFields();
+  /**
+   * STUB — not wired to a real email/SMS provider yet.
+   * The capsule is already saved locally (window.storage) regardless of
+   * what happens here, so nothing breaks if this stays a no-op. When a
+   * real backend exists, replace the body of this function with a
+   * fetch() call to that API — the capsule object already carries
+   * everything it needs: email, phone, deliveryMethod, unlockDate,
+   * title, body, createdAt.
+   *
+   * Example of what this would look like later:
+   *   await fetch('https://your-delivery-api.example.com/schedule', {
+   *     method: 'POST',
+   *     headers: { 'Content-Type': 'application/json' },
+   *     body: JSON.stringify(capsule)
+   *   });
+   */
+  async function requestDelivery(capsule){
+    // TODO: wire up real email/SMS delivery here.
+    return Promise.resolve({ scheduled: false, reason: 'delivery API not connected yet' });
+  }
 
   /* ---------- STORAGE ---------- */
   async function getCapsuleIds(){
@@ -842,19 +1057,22 @@
 
   async function sealCapsule(data){
     const id = 'c' + Date.now() + Math.floor(Math.random()*1000);
+    const capsuleId = generateCapsuleId();
+    const variant = sealVariant(capsuleId);
     const capsule = {
       id,
-      name: data.name,
-      grade: data.grade,
+      capsuleId,
+      sealHue: variant.hue,
+      sealRotate: variant.rotate,
+      batch: data.batch,
       title: data.title,
       body: data.body,
       unlockDate: data.date,
-      createdAt: todayISO(),
       deliveryMethod: data.deliveryMethod,
-      email: data.email || '',
-      phone: data.phone || '',
-      deliveryStatus: 'scheduled',
-      deliveredAt: null
+      email: data.email,
+      phone: data.phone,
+      createdAt: todayISO(),
+      opened: false
     };
     const setResult = await window.storage.set('capsule:' + id, JSON.stringify(capsule), false);
     if(!setResult){ throw new Error('Storage set returned no result'); }
@@ -862,6 +1080,10 @@
     const ids = await getCapsuleIds();
     ids.push(id);
     await window.storage.set('capsule-ids', JSON.stringify(ids), false);
+
+    try{ await requestDelivery(capsule); }catch(e){ /* stub — never blocks sealing */ }
+    bumpSharedCounter('stats:total-sealed');
+
     return capsule;
   }
 
@@ -909,18 +1131,15 @@
 
       const info = document.createElement('div');
       info.className = 'info';
-      const who = cap.name ? escapeHtml(cap.name) + (cap.grade ? ' · ' + escapeHtml(cap.grade) : '') : 'Untitled writer';
-      const deliveryLabel = cap.deliveryMethod === 'both'
-        ? 'email + phone'
-        : cap.deliveryMethod === 'phone'
-          ? 'phone'
-          : 'email';
-
+      const who = cap.batch ? escapeHtml(cap.batch) : 'Anonymous';
+      const methodText = cap.deliveryMethod ? ' · via ' + deliveryLabel(cap.deliveryMethod) : '';
       const metaText = unlocked
-        ? 'Delivery date reached · sealed ' + formatDate(cap.createdAt) + ' · ' + deliveryLabel
-        : 'Scheduled for ' + formatDate(cap.unlockDate) + ' · in ' + daysUntil(cap.unlockDate) + ' day' + (daysUntil(cap.unlockDate) === 1 ? '' : 's') + ' · ' + deliveryLabel;
-      info.innerHTML = '<div class="title">' + escapeHtml(cap.title) + '</div>' +
-                        '<div class="meta">' + who + ' &middot; ' + metaText + '</div>';
+        ? 'Ready to open · sealed ' + formatDate(cap.createdAt) + methodText
+        : 'Opens ' + formatDate(cap.unlockDate) + ' · in ' + daysUntil(cap.unlockDate) + ' day' + (daysUntil(cap.unlockDate) === 1 ? '' : 's') + methodText;
+      const dotColor = cap.sealHue !== undefined ? waxColor(cap.sealHue) : 'var(--gold)';
+      const idChip = cap.capsuleId ? '<span class="capsule-id-chip">' + escapeHtml(cap.capsuleId) + '</span>' : '';
+      info.innerHTML = '<div class="title"><span class="wax-dot" style="background:' + dotColor + '"></span>' + escapeHtml(cap.title) + '</div>' +
+                        '<div class="meta">' + who + ' &middot; ' + metaText + (idChip ? ' &middot; ' + idChip : '') + '</div>';
 
       const actions = document.createElement('div');
       actions.className = 'capsule-actions';
@@ -944,9 +1163,9 @@
     });
   }
 
-  function revealLetter(cap){
+  async function revealLetter(cap){
     const slot = document.getElementById('letter-reveal-slot');
-    const who = cap.name ? escapeHtml(cap.name) + (cap.grade ? ', ' + escapeHtml(cap.grade) : '') : 'You';
+    const who = cap.batch ? escapeHtml(cap.batch) : 'Anonymous';
     slot.innerHTML =
       '<div class="letter-reveal reveal r1">' +
         '<div class="meta-row">' +
@@ -956,6 +1175,15 @@
         '<div class="body-text">' + escapeHtml(cap.body) + '</div>' +
       '</div>';
     slot.scrollIntoView({behavior:'smooth', block:'start'});
+
+    if(!cap.opened){
+      cap.opened = true;
+      try{
+        await window.storage.set('capsule:' + cap.id, JSON.stringify(cap), false);
+        await bumpSharedCounter('stats:total-opened');
+        updateStatsDisplay();
+      }catch(e){ /* non-critical */ }
+    }
   }
 </script>
 
