@@ -776,6 +776,87 @@
 </div>
 
 <script>
+  /* =========================================================================
+     STORAGE — REAL localStorage, WORKS ON ANY HOSTING
+     -------------------------------------------------------------------------
+     `window.storage` (get/set/delete/list) only exists inside Claude's own
+     artifact preview — it does NOT exist once this file is hosted on your
+     own site or opened directly in a browser. So this whole app now uses
+     the browser's real, built-in `localStorage` instead, wrapped below to
+     look just like the old API. This means:
+       - "Seal It" really saves the letter in the visitor's own browser.
+       - "My Capsules" really reads it back, on that same device/browser.
+       - Nothing here needs Claude.ai to work — you can upload this .html
+         anywhere (school site, GitHub Pages, etc.) and it just works.
+
+     LIMITATION TO KNOW ABOUT: localStorage is per-browser, per-device. It
+     is NOT shared across different students' phones/computers, and it can
+     be cleared if someone clears their browser data. That's fine for
+     testing and for "my own capsules on my own device," but it is NOT a
+     substitute for a real backend if you want capsules to survive across
+     devices or to actually deliver emails/texts on the unlock date.
+
+     WHEN YOU'RE READY FOR A REAL BACKEND:
+       1. Search this file for "requestDelivery" — that's the clearly
+          marked stub where your real email/SMS API call goes.
+       2. Replace the body of `localDB` below with real fetch() calls to
+          your backend (e.g. GET/POST to your own server or a service like
+          Firebase/Supabase) instead of localStorage — every place that
+          calls `localDB.get/set/delete/list` elsewhere in this file stays
+          exactly the same, since they all just await the same shape of
+          response ({ key, value } etc.).
+  ========================================================================= */
+  const localDB = {
+    async get(key, shared){
+      try{
+        const raw = localStorage.getItem(key);
+        if(raw === null) return null; // matches "key not found" behavior
+        return { key, value: raw, shared: !!shared };
+      }catch(e){ return null; } // e.g. localStorage disabled/blocked
+    },
+    async set(key, value, shared){
+      try{
+        localStorage.setItem(key, value);
+        return { key, value, shared: !!shared };
+      }catch(e){ return null; }
+    },
+    async delete(key, shared){
+      try{
+        localStorage.removeItem(key);
+        return { key, deleted: true, shared: !!shared };
+      }catch(e){ return null; }
+    },
+    async list(prefix, shared){
+      try{
+        const keys = [];
+        for(let i = 0; i < localStorage.length; i++){
+          const k = localStorage.key(i);
+          if(!prefix || (k && k.indexOf(prefix) === 0)) keys.push(k);
+        }
+        return { keys, prefix, shared: !!shared };
+      }catch(e){ return null; }
+    }
+  };
+
+  /* =========================================================================
+     DEMO / STATIC-DATA SWITCHES
+     -------------------------------------------------------------------------
+     The "Seal It" flow, "My Capsules", and Capsule ID / wax-seal variation
+     are all really working now (via localDB above) — none of that is fake.
+
+     The ONE thing that is not real yet is the "X students have already
+     sealed…" community counter. Even with localStorage working, that
+     counter would only reflect sealed letters from THIS ONE browser (see
+     the limitation note above), so it's not a meaningful public number
+     yet. Flip DEMO_STATIC_STATS to false once you have a real backend
+     that can count sealed/opened letters across everyone, and the
+     original live-counter code (already written below, just inactive)
+     will take over automatically.
+  ========================================================================= */
+  const DEMO_STATIC_STATS = true;          // true = show the fake sample numbers below
+  const DEMO_SEALED_COUNT = 12;            // fake "students who sealed a letter" count
+  const DEMO_OPENED_COUNT = 0;             // fake "letters already opened" count
+
   /* ---------- VIEW NAVIGATION ---------- */
   function showView(name, replayHome){
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -867,19 +948,32 @@
   /* ---------- SHARED COMMUNITY STATS (numbers only, no letter content) ---------- */
   async function getSharedCounter(key){
     try{
-      const res = await window.storage.get(key, true);
+      const res = await localDB.get(key, true);
       return res && res.value ? (parseInt(res.value, 10) || 0) : 0;
     }catch(e){ return 0; }
   }
   async function bumpSharedCounter(key){
     try{
       const current = await getSharedCounter(key);
-      await window.storage.set(key, String(current + 1), true);
+      await localDB.set(key, String(current + 1), true);
     }catch(e){ /* stats are best-effort; never block sealing or opening */ }
   }
+
   async function updateStatsDisplay(){
-    const sealed = await getSharedCounter('stats:total-sealed');
-    const opened = await getSharedCounter('stats:total-opened');
+    let sealed, opened;
+
+    if(DEMO_STATIC_STATS){
+      // ---- STATIC / FAKE NUMBERS (active right now) ----
+      sealed = DEMO_SEALED_COUNT;
+      opened = DEMO_OPENED_COUNT;
+    } else {
+      // ---- REAL SHARED-STORAGE NUMBERS ----
+      // This is the original live version. Flip DEMO_STATIC_STATS to
+      // false above and this block runs instead of the fake numbers.
+      sealed = await getSharedCounter('stats:total-sealed');
+      opened = await getSharedCounter('stats:total-opened');
+    }
+
     const waiting = Math.max(sealed - opened, 0);
     let text;
     if(sealed === 0){
@@ -1026,14 +1120,16 @@
 
   /**
    * STUB — not wired to a real email/SMS provider yet.
-   * The capsule is already saved locally (window.storage) regardless of
+   * The capsule is already saved locally (localDB / localStorage) regardless of
    * what happens here, so nothing breaks if this stays a no-op. When a
    * real backend exists, replace the body of this function with a
    * fetch() call to that API — the capsule object already carries
    * everything it needs: email, phone, deliveryMethod, unlockDate,
    * title, body, createdAt.
    *
-   * Example of what this would look like later:
+   * Example of what this would look like later (left here so you can
+   * just uncomment and fill in your real endpoint):
+   *
    *   await fetch('https://your-delivery-api.example.com/schedule', {
    *     method: 'POST',
    *     headers: { 'Content-Type': 'application/json' },
@@ -1048,7 +1144,7 @@
   /* ---------- STORAGE ---------- */
   async function getCapsuleIds(){
     try{
-      const res = await window.storage.get('capsule-ids', false);
+      const res = await localDB.get('capsule-ids', false);
       return res && res.value ? JSON.parse(res.value) : [];
     }catch(e){
       return [];
@@ -1074,15 +1170,21 @@
       createdAt: todayISO(),
       opened: false
     };
-    const setResult = await window.storage.set('capsule:' + id, JSON.stringify(capsule), false);
+    const setResult = await localDB.set('capsule:' + id, JSON.stringify(capsule), false);
     if(!setResult){ throw new Error('Storage set returned no result'); }
 
     const ids = await getCapsuleIds();
     ids.push(id);
-    await window.storage.set('capsule-ids', JSON.stringify(ids), false);
+    await localDB.set('capsule-ids', JSON.stringify(ids), false);
 
     try{ await requestDelivery(capsule); }catch(e){ /* stub — never blocks sealing */ }
-    bumpSharedCounter('stats:total-sealed');
+
+    // Only feed the REAL shared counter while we're not showing the demo
+    // numbers, so switching DEMO_STATIC_STATS back to false later shows an
+    // honest count instead of a mix of real + fake sealed letters.
+    if(!DEMO_STATIC_STATS){
+      bumpSharedCounter('stats:total-sealed');
+    }
 
     return capsule;
   }
@@ -1107,7 +1209,7 @@
     const capsules = [];
     for(const id of ids){
       try{
-        const res = await window.storage.get('capsule:' + id, false);
+        const res = await localDB.get('capsule:' + id, false);
         if(res && res.value) capsules.push(JSON.parse(res.value));
       }catch(e){
         /* skip missing/corrupted entry */
@@ -1179,8 +1281,12 @@
     if(!cap.opened){
       cap.opened = true;
       try{
-        await window.storage.set('capsule:' + cap.id, JSON.stringify(cap), false);
-        await bumpSharedCounter('stats:total-opened');
+        await localDB.set('capsule:' + cap.id, JSON.stringify(cap), false);
+        // Same rule as sealing: only touch the real counter when we're
+        // not in demo mode, so the two data sources never mix.
+        if(!DEMO_STATIC_STATS){
+          await bumpSharedCounter('stats:total-opened');
+        }
         updateStatsDisplay();
       }catch(e){ /* non-critical */ }
     }
