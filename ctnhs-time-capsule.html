@@ -246,6 +246,53 @@
 
   .form-actions{ display:flex; align-items:center; gap:18px; margin-top:36px; flex-wrap:wrap; }
 
+  /* ---------- MULTI-STEP FORM ---------- */
+  .step-progress{
+    display:flex; align-items:center; gap:10px; margin-bottom:44px;
+  }
+  .step-progress .seg{
+    flex:1; height:3px; border-radius:3px; background:var(--line);
+    position:relative; overflow:hidden;
+  }
+  .step-progress .seg .fill{
+    position:absolute; inset:0; width:0%;
+    background:linear-gradient(90deg, var(--gold), var(--plum));
+    transition:width .5s cubic-bezier(.22,.61,.36,1);
+  }
+  .step-progress .seg.done .fill{ width:100%; }
+  .step-progress .seg.current .fill{ width:100%; }
+  .step-progress .seg.current .fill{ animation:segGrow .5s cubic-bezier(.22,.61,.36,1); }
+  @keyframes segGrow{ from{width:0%;} to{width:100%;} }
+
+  .form-step{ display:none; }
+  .form-step.active{ display:block; }
+  @keyframes stepInRight{ from{opacity:0; transform:translateX(28px);} to{opacity:1; transform:translateX(0);} }
+  @keyframes stepInLeft{ from{opacity:0; transform:translateX(-28px);} to{opacity:1; transform:translateX(0);} }
+  .form-step.active.dir-next{ animation:stepInRight .45s cubic-bezier(.22,.61,.36,1); }
+  .form-step.active.dir-back{ animation:stepInLeft .45s cubic-bezier(.22,.61,.36,1); }
+
+  .step-back-icon{ width:15px; height:15px; flex-shrink:0; }
+  .step-back-icon path{ transition:transform .25s ease; }
+  #step-back:hover .step-back-icon{ transform:translateX(-2px); }
+
+  /* ---------- STATS LINE + LIVE DOT ---------- */
+  .stats-line{
+    display:inline-flex; align-items:center; gap:9px;
+    font-size:13px; color:var(--cocoa); font-style:italic;
+    font-family:'Cormorant Garamond', serif; margin-top:14px;
+  }
+  .stats-dot{
+    position:relative; width:8px; height:8px; border-radius:50%; flex-shrink:0;
+    background:#5FAE7A;
+    box-shadow:0 0 0 0 rgba(95,174,122,0.55);
+    animation:statsPulse 2.2s ease-out infinite;
+  }
+  @keyframes statsPulse{
+    0%{ box-shadow:0 0 0 0 rgba(95,174,122,0.55); }
+    70%{ box-shadow:0 0 0 7px rgba(95,174,122,0); }
+    100%{ box-shadow:0 0 0 0 rgba(95,174,122,0); }
+  }
+
   .side-note{
     padding:38px 34px;
     border:1px dashed var(--line);
@@ -431,12 +478,6 @@
 
   .loading-line{ font-size:13.5px; color:var(--cocoa); font-style:italic; font-family:'Cormorant Garamond', serif; }
 
-  /* ---------- STATS LINE ---------- */
-  .stats-line{
-    font-size:13px; color:var(--cocoa); font-style:italic;
-    font-family:'Cormorant Garamond', serif; margin-top:14px;
-  }
-
   /* ---------- CAPSULE ID ---------- */
   .capsule-id-badge{
     display:inline-flex; align-items:center; gap:8px;
@@ -567,7 +608,7 @@
         <div class="hero-actions reveal r4">
           <button class="btn solid" onclick="showView('write')">Write Your Letter</button>
           <p class="fine-line">Write it. Seal it. Live your life. Come back when the time is right.</p>
-          <p class="stats-line" id="home-stats-line">Loading capsule stats…</p>
+          <p class="stats-line" id="home-stats-line"><span class="stats-dot"></span><span id="home-stats-text">Loading capsule stats…</span></p>
         </div>
       </div>
 
@@ -684,62 +725,84 @@
 <section class="view" id="view-write">
   <div class="page-section wrap">
     <div class="page-head">
-      <div class="kicker reveal r1" style="margin-bottom:16px;">STEP ONE — WRITE</div>
-      <h2 class="headline">Write to your future self</h2>
-      <p>Say whatever you'd want to hear years from now — how today feels, what you're hoping for, what you don't want to forget.</p>
+      <div class="kicker reveal r1" style="margin-bottom:16px;" id="step-kicker">STEP ONE — WRITE</div>
+      <h2 class="headline" id="step-title">Write to your future self</h2>
+      <p id="step-desc">Say whatever you'd want to hear years from now — how today feels, what you're hoping for, what you don't want to forget.</p>
     </div>
 
     <div class="letter-layout">
       <form class="paper-card" id="letter-form" novalidate>
-        <div class="field" id="field-delivery">
-          <label for="input-delivery">How should we deliver it?</label>
-          <select id="input-delivery">
-            <option value="email">Email only</option>
-            <option value="phone">Phone (SMS) only</option>
-            <option value="both">Email and phone</option>
-          </select>
-          <div class="hint">This just decides which field below is required for now — actual delivery isn't wired up yet, see the note on the right.</div>
+
+        <div class="step-progress" id="step-progress">
+          <div class="seg current" data-seg="1"><div class="fill"></div></div>
+          <div class="seg" data-seg="2"><div class="fill"></div></div>
+          <div class="seg" data-seg="3"><div class="fill"></div></div>
         </div>
 
-        <div class="field-row">
-          <div class="field" id="field-email">
-            <label for="input-email">Email address</label>
-            <input type="email" id="input-email" placeholder="vince@example.com">
-            <div class="field-error-msg">Please enter a valid email.</div>
+        <!-- STEP 1: TITLE + LETTER -->
+        <div class="form-step active" data-step="1">
+          <div class="field" id="field-title">
+            <label for="input-title">Title</label>
+            <input type="text" id="input-title" placeholder="Dear Future Me..." maxlength="80">
           </div>
-          <div class="field" id="field-phone">
-            <label for="input-phone">Phone number</label>
-            <input type="tel" id="input-phone" placeholder="09xx xxx xxxx">
-            <div class="field-error-msg">Please enter a phone number.</div>
+
+          <div class="field" id="field-body">
+            <label for="input-body">Your letter</label>
+            <textarea id="input-body" placeholder="Right now, I..."></textarea>
+            <div class="field-error-msg">Write something before sealing it.</div>
           </div>
         </div>
 
-        <div class="field-row">
-          <div class="field" id="field-batch">
-            <label for="input-batch">Batch</label>
-            <input type="text" id="input-batch" placeholder="e.g. Grade-12 Batch 2027" maxlength="40">
-          </div>
-          <div class="field" id="field-date">
-            <label for="input-date">Open on this date</label>
-            <input type="date" id="input-date">
-            <div class="field-error-msg">Pick a date in the future.</div>
+        <!-- STEP 2: BATCH + OPEN DATE -->
+        <div class="form-step" data-step="2">
+          <div class="field-row">
+            <div class="field" id="field-batch">
+              <label for="input-batch">Batch</label>
+              <input type="text" id="input-batch" placeholder="e.g. Grade-12 Batch 2027" maxlength="40">
+            </div>
+            <div class="field" id="field-date">
+              <label for="input-date">Open on this date</label>
+              <input type="date" id="input-date">
+              <div class="field-error-msg">Pick a date in the future.</div>
+            </div>
           </div>
         </div>
 
-        <div class="field" id="field-title">
-          <label for="input-title">Title</label>
-          <input type="text" id="input-title" placeholder="Dear Future Me..." maxlength="80">
-        </div>
+        <!-- STEP 3: DELIVERY -->
+        <div class="form-step" data-step="3">
+          <div class="field" id="field-delivery">
+            <label for="input-delivery">How should we deliver it?</label>
+            <select id="input-delivery">
+              <option value="email">Email only</option>
+              <option value="phone">Phone (SMS) only</option>
+              <option value="both">Email and phone</option>
+            </select>
+            <div class="hint">This just decides which field below is required for now — actual delivery isn't wired up yet, see the note on the right.</div>
+          </div>
 
-        <div class="field" id="field-body">
-          <label for="input-body">Your letter</label>
-          <textarea id="input-body" placeholder="Right now, I..."></textarea>
-          <div class="field-error-msg">Write something before sealing it.</div>
+          <div class="field-row">
+            <div class="field" id="field-email">
+              <label for="input-email">Email address</label>
+              <input type="email" id="input-email" placeholder="vince@example.com">
+              <div class="field-error-msg">Please enter a valid email.</div>
+            </div>
+            <div class="field" id="field-phone">
+              <label for="input-phone">Phone number</label>
+              <input type="tel" id="input-phone" placeholder="09xx xxx xxxx">
+              <div class="field-error-msg">Please enter a phone number.</div>
+            </div>
+          </div>
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="btn solid">Seal It</button>
-          <button type="button" class="btn ghost" onclick="showView('home', true)">Cancel</button>
+          <button type="button" class="btn ghost" id="step-back" onclick="stepBack()">
+            <svg class="step-back-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 3 L4 8 L10 13"/>
+            </svg>
+            <span id="step-back-label">Cancel</span>
+          </button>
+          <button type="button" class="btn solid" id="step-next" onclick="stepNext()">Next</button>
+          <button type="submit" class="btn solid" id="step-submit" style="display:none;">Seal It</button>
         </div>
       </form>
 
@@ -786,7 +849,7 @@
       <div class="kicker reveal r1" style="margin-bottom:16px;">STEP THREE — RETURN</div>
       <h2 class="headline">My Capsules</h2>
       <p>Every letter you've sealed lives here. Locked ones stay locked until their date — once it passes, you can open and read them.</p>
-      <p class="stats-line" id="capsules-stats-line"></p>
+      <p class="stats-line" id="capsules-stats-line"><span class="stats-dot"></span><span id="capsules-stats-text"></span></p>
     </div>
 
     <div id="capsules-loading" class="loading-line">Gathering your letters…</div>
@@ -921,6 +984,115 @@
     closeNav();
   });
 
+  /* ---------- MULTI-STEP FORM WIZARD ---------- */
+  const TOTAL_STEPS = 3;
+  let currentStep = 1;
+
+  const STEP_COPY = {
+    1: {
+      kicker: 'STEP ONE — WRITE',
+      title: 'Write to your future self',
+      desc: "Say whatever you'd want to hear years from now — how today feels, what you're hoping for, what you don't want to forget."
+    },
+    2: {
+      kicker: 'STEP TWO — DETAILS',
+      title: 'A couple of details',
+      desc: 'Which batch is this for, and when should it unlock?'
+    },
+    3: {
+      kicker: 'STEP THREE — DELIVERY',
+      title: 'How should we reach you?',
+      desc: "So we know where to send it once it's time. Nothing gets sent right now."
+    }
+  };
+
+  function updateStepChrome(){
+    const copy = STEP_COPY[currentStep];
+    document.getElementById('step-kicker').textContent = copy.kicker;
+    document.getElementById('step-title').textContent = copy.title;
+    document.getElementById('step-desc').textContent = copy.desc;
+
+    document.querySelectorAll('#step-progress .seg').forEach(seg=>{
+      const s = parseInt(seg.dataset.seg, 10);
+      seg.classList.toggle('done', s < currentStep);
+      seg.classList.toggle('current', s === currentStep);
+    });
+
+    const backLabel = document.getElementById('step-back-label');
+    const nextBtn = document.getElementById('step-next');
+    const submitBtn = document.getElementById('step-submit');
+    backLabel.textContent = currentStep === 1 ? 'Cancel' : 'Back';
+    nextBtn.style.display = currentStep < TOTAL_STEPS ? '' : 'none';
+    submitBtn.style.display = currentStep === TOTAL_STEPS ? '' : 'none';
+  }
+
+  function goToStep(n, direction){
+    document.querySelectorAll('.form-step').forEach(stepEl=>{
+      const s = parseInt(stepEl.dataset.step, 10);
+      stepEl.classList.remove('active','dir-next','dir-back');
+      if(s === n){
+        stepEl.classList.add('active', direction > 0 ? 'dir-next' : 'dir-back');
+      }
+    });
+    currentStep = n;
+    updateStepChrome();
+  }
+
+  function resetToStep1(){
+    currentStep = 1;
+    document.querySelectorAll('.form-step').forEach(stepEl=>{
+      const s = parseInt(stepEl.dataset.step, 10);
+      stepEl.classList.remove('active','dir-next','dir-back');
+      if(s === 1) stepEl.classList.add('active');
+    });
+    updateStepChrome();
+  }
+
+  function validateStep(n){
+    clearFormErrors();
+    let ok = true;
+    if(n === 1){
+      if(!document.getElementById('input-body').value.trim()){
+        document.getElementById('field-body').classList.add('error');
+        ok = false;
+      }
+    } else if(n === 2){
+      const date = document.getElementById('input-date').value;
+      if(!date || date < todayISO()){
+        document.getElementById('field-date').classList.add('error');
+        ok = false;
+      }
+    } else if(n === 3){
+      const deliveryMethod = inputDeliveryEl().value;
+      const email = document.getElementById('input-email').value.trim();
+      const phone = document.getElementById('input-phone').value.trim();
+      if((deliveryMethod === 'email' || deliveryMethod === 'both') && !isValidEmail(email)){
+        document.getElementById('field-email').classList.add('error');
+        ok = false;
+      }
+      if((deliveryMethod === 'phone' || deliveryMethod === 'both') && !phone){
+        document.getElementById('field-phone').classList.add('error');
+        ok = false;
+      }
+    }
+    return ok;
+  }
+
+  function inputDeliveryEl(){ return document.getElementById('input-delivery'); }
+
+  function stepNext(){
+    if(!validateStep(currentStep)) return;
+    if(currentStep < TOTAL_STEPS) goToStep(currentStep + 1, 1);
+  }
+
+  function stepBack(){
+    if(currentStep === 1){
+      showView('home', true);
+      return;
+    }
+    goToStep(currentStep - 1, -1);
+  }
+
   /* ---------- VIEW NAVIGATION ---------- */
   function showView(name, replayHome){
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -936,6 +1108,7 @@
     if(name === 'write'){
       clearFormErrors();
       updateDeliveryFieldVisibility();
+      resetToStep1();
     }
     if(name === 'home'){
       updateStatsDisplay();
@@ -1046,8 +1219,8 @@
       text = sealed + ' student' + (sealed === 1 ? ' has' : 's have') + ' already sealed something for their future self' +
         (waiting > 0 ? ' — ' + waiting + ' still waiting to be opened.' : '.');
     }
-    const l1 = document.getElementById('home-stats-line');
-    const l2 = document.getElementById('capsules-stats-line');
+    const l1 = document.getElementById('home-stats-text');
+    const l2 = document.getElementById('capsules-stats-text');
     if(l1) l1.textContent = text;
     if(l2) l2.textContent = text;
   }
