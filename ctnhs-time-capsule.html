@@ -881,6 +881,8 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
   /* =========================================================================
      STORAGE — REAL localStorage, WORKS ON ANY HOSTING
@@ -911,8 +913,97 @@
           calls `localDB.get/set/delete/list` elsewhere in this file stays
           exactly the same, since they all just await the same shape of
           response ({ key, value } etc.).
-  ========================================================================= */
-  const localDB = {
+  // ============================================================================
+// FIREBASE — REAL CLOUD DATABASE (Cloud Firestore)
+// Uses the Firebase browser/CDN module SDK you provided.
+// ============================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDOP7TFmloiZ9hzkb-y5m-bRSEOnN7riAU",
+  authDomain: "timecapsule-4e6ea.firebaseapp.com",
+  projectId: "timecapsule-4e6ea",
+  storageBucket: "timecapsule-4e6ea.firebasestorage.app",
+  messagingSenderId: "960462051562",
+  appId: "1:960462051562:web:e4fec01e0f3c40f8b7df93",
+  measurementId: "G-WQXEB9759X"
+};
+
+// Dynamic imports avoid changing the rest of your current script structure.
+const firebaseReady = (async function(){
+  const appSDK = await import("https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js");
+  const firestoreSDK = await import("https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js");
+
+  const app = appSDK.initializeApp(firebaseConfig);
+  const db = firestoreSDK.getFirestore(app);
+
+  // Analytics is optional. A problem with Analytics must never block Firestore.
+  import("https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js")
+    .then(({ getAnalytics }) => {
+      try { getAnalytics(app); } catch(e) { console.warn('Firebase Analytics unavailable:', e); }
+    })
+    .catch(e => console.warn('Firebase Analytics could not load:', e));
+
+  return { app, db, firestore: firestoreSDK };
+})();
+
+const BROWSER_OWNER_KEY = 'timecapsule-browser-owner-id';
+function getBrowserOwnerId(){
+  try{
+    let id = localStorage.getItem(BROWSER_OWNER_KEY);
+    if(!id){
+      id = (globalThis.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'browser-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+      localStorage.setItem(BROWSER_OWNER_KEY, id);
+    }
+    return id;
+  }catch(e){
+    return 'browser-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  }
+}
+
+async function saveCapsuleToFirestore(capsule){
+  const { db, firestore } = await firebaseReady;
+  const unlockDate = new Date(capsule.unlockDate + 'T00:00:00');
+
+  const cloudData = {
+    capsuleId: capsule.capsuleId,
+    sealHue: capsule.sealHue,
+    sealRotate: capsule.sealRotate,
+    batch: capsule.batch || '',
+    title: capsule.title,
+    body: capsule.body,
+    unlockDate: capsule.unlockDate,
+    unlockAt: firestore.Timestamp.fromDate(unlockDate),
+    deliveryMethod: capsule.deliveryMethod,
+    email: capsule.email || '',
+    phone: capsule.phone || '',
+    ownerId: getBrowserOwnerId(),
+    opened: false,
+    createdDate: capsule.createdAt,
+    createdAt: firestore.serverTimestamp(),
+    schemaVersion: 1
+  };
+
+  const docRef = await firestore.addDoc(
+    firestore.collection(db, 'capsules'),
+    cloudData
+  );
+
+  // Preserve your existing capsuleId; store Firestore's ID separately.
+  capsule.firestoreId = docRef.id;
+  return docRef.id;
+}
+
+async function markCapsuleOpenedInFirestore(capsule){
+  if(!capsule || !capsule.firestoreId) return;
+  const { db, firestore } = await firebaseReady;
+  await firestore.updateDoc(
+    firestore.doc(db, 'capsules', capsule.firestoreId),
+    { opened: true, openedAt: firestore.serverTimestamp() }
+  );
+}
+
+const localDB = {
     async get(key, shared){
       try{
         const raw = localStorage.getItem(key);
@@ -950,16 +1041,11 @@
      The "Seal It" flow, "My Capsules", and Capsule ID / wax-seal variation
      are all really working now (via localDB above) — none of that is fake.
 
-     The ONE thing that is not real yet is the "X students have already
-     sealed…" community counter. Even with localStorage working, that
-     counter would only reflect sealed letters from THIS ONE browser (see
-     the limitation note above), so it's not a meaningful public number
-     yet. Flip DEMO_STATIC_STATS to false once you have a real backend
-     that can count sealed/opened letters across everyone, and the
-     original live-counter code (already written below, just inactive)
-     will take over automatically.
+     Cloud Firestore is now the real backend for sealed capsules and the
+     community sealed/opened counters. localDB remains as a compatibility
+     cache so the existing My Capsules UI keeps working without a redesign.
   ========================================================================= */
-  const DEMO_STATIC_STATS = true;          // true = show the fake sample numbers below
+  const DEMO_STATIC_STATS = false;         // Firestore connected: use real shared counts
   const DEMO_SEALED_COUNT = 12;            // fake "students who sealed a letter" count
   const DEMO_OPENED_COUNT = 0;             // fake "letters already opened" count
 
@@ -1185,15 +1271,32 @@
   /* ---------- SHARED COMMUNITY STATS (numbers only, no letter content) ---------- */
   async function getSharedCounter(key){
     try{
-      const res = await localDB.get(key, true);
-      return res && res.value ? (parseInt(res.value, 10) || 0) : 0;
-    }catch(e){ return 0; }
+      const { db, firestore } = await firebaseReady;
+      const snap = await firestore.getDoc(firestore.doc(db, 'siteStats', 'community'));
+      if(!snap.exists()) return 0;
+      const data = snap.data() || {};
+      if(key === 'stats:total-sealed') return Number(data.totalSealed || 0);
+      if(key === 'stats:total-opened') return Number(data.totalOpened || 0);
+      return 0;
+    }catch(e){
+      console.warn('Could not read Firestore stats:', e);
+      return 0;
+    }
   }
   async function bumpSharedCounter(key){
     try{
-      const current = await getSharedCounter(key);
-      await localDB.set(key, String(current + 1), true);
-    }catch(e){ /* stats are best-effort; never block sealing or opening */ }
+      const { db, firestore } = await firebaseReady;
+      const statsRef = firestore.doc(db, 'siteStats', 'community');
+      const field = key === 'stats:total-opened' ? 'totalOpened' : 'totalSealed';
+      await firestore.setDoc(
+        statsRef,
+        { [field]: firestore.increment(1), updatedAt: firestore.serverTimestamp() },
+        { merge: true }
+      );
+    }catch(e){
+      console.warn('Could not update Firestore stats:', e);
+      /* stats are best-effort; never block sealing or opening */
+    }
   }
 
   async function updateStatsDisplay(){
@@ -1407,12 +1510,19 @@
       createdAt: todayISO(),
       opened: false
     };
-    const setResult = await localDB.set('capsule:' + id, JSON.stringify(capsule), false);
-    if(!setResult){ throw new Error('Storage set returned no result'); }
+    // PRIMARY SAVE: Cloud Firestore is now the real database.
+    // A failed cloud write stops the seal flow so the UI never pretends it was saved.
+    await saveCapsuleToFirestore(capsule);
 
-    const ids = await getCapsuleIds();
-    ids.push(id);
-    await localDB.set('capsule-ids', JSON.stringify(ids), false);
+    // LOCAL CACHE: retained only so your current My Capsules UI works unchanged.
+    const setResult = await localDB.set('capsule:' + id, JSON.stringify(capsule), false);
+    if(!setResult){
+      console.warn('Capsule is in Firestore, but local cache could not be written.');
+    } else {
+      const ids = await getCapsuleIds();
+      if(!ids.includes(id)) ids.push(id);
+      await localDB.set('capsule-ids', JSON.stringify(ids), false);
+    }
 
     try{ await requestDelivery(capsule); }catch(e){ /* stub — never blocks sealing */ }
 
@@ -1519,6 +1629,11 @@
       cap.opened = true;
       try{
         await localDB.set('capsule:' + cap.id, JSON.stringify(cap), false);
+        try{
+          await markCapsuleOpenedInFirestore(cap);
+        }catch(e){
+          console.warn('Could not mark Firestore capsule as opened:', e);
+        }
         // Same rule as sealing: only touch the real counter when we're
         // not in demo mode, so the two data sources never mix.
         if(!DEMO_STATIC_STATS){
