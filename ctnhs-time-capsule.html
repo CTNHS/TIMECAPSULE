@@ -387,8 +387,6 @@
   }
 
   @media (max-width:680px){
-    /* Nav switches to a hamburger + dropdown once Home / My Capsules /
-       Create Capsule no longer fit comfortably on one line. */
     .nav-links{
       position:absolute; top:calc(100% + 10px); right:clamp(20px,6vw,26px);
       flex-direction:column; align-items:stretch; gap:8px;
@@ -568,6 +566,11 @@
   }
   .seal-overlay.done .seal-id-reveal{ opacity:1; }
 
+  .hp-field{ position:absolute !important; left:-9999px !important; top:-9999px !important; width:1px; height:1px; overflow:hidden; }
+
+  .rate-limit-note{ font-size:12.5px; color:var(--error); margin-top:14px; display:none; }
+  .rate-limit-note.show{ display:block; }
+
   @media (prefers-reduced-motion: reduce){
     *{transition:none !important; animation:none !important;}
     .reveal{opacity:1;}
@@ -733,6 +736,13 @@
     <div class="letter-layout">
       <form class="paper-card" id="letter-form" novalidate>
 
+        <!-- Honeypot: real visitors never see or fill this in. If it's filled,
+             the submission is treated as a bot and silently dropped. -->
+        <div class="hp-field" aria-hidden="true">
+          <label for="input-hp">Leave this field blank</label>
+          <input type="text" id="input-hp" name="hp_field" tabindex="-1" autocomplete="off">
+        </div>
+
         <div class="step-progress" id="step-progress">
           <div class="seg current" data-seg="1"><div class="fill"></div></div>
           <div class="seg" data-seg="2"><div class="fill"></div></div>
@@ -748,7 +758,7 @@
 
           <div class="field" id="field-body">
             <label for="input-body">Your letter</label>
-            <textarea id="input-body" placeholder="Right now, I..."></textarea>
+            <textarea id="input-body" placeholder="Right now, I..." maxlength="6000"></textarea>
             <div class="field-error-msg">Write something before sealing it.</div>
           </div>
         </div>
@@ -777,18 +787,18 @@
               <option value="phone">Phone (SMS) only</option>
               <option value="both">Email and phone</option>
             </select>
-            <div class="hint">This just decides which field below is required for now — actual delivery isn't wired up yet, see the note on the right.</div>
+            <div class="hint">Your email also doubles as your key for finding your letters later on the "My Capsules" page — no password needed, but don't share it if you'd rather others not look yours up.</div>
           </div>
 
           <div class="field-row">
             <div class="field" id="field-email">
               <label for="input-email">Email address</label>
-              <input type="email" id="input-email" placeholder="vince@example.com">
+              <input type="email" id="input-email" placeholder="vince@example.com" maxlength="120" autocomplete="email">
               <div class="field-error-msg">Please enter a valid email.</div>
             </div>
             <div class="field" id="field-phone">
               <label for="input-phone">Phone number</label>
-              <input type="tel" id="input-phone" placeholder="09xx xxx xxxx">
+              <input type="tel" id="input-phone" placeholder="09xx xxx xxxx" maxlength="20" autocomplete="tel">
               <div class="field-error-msg">Please enter a phone number.</div>
             </div>
           </div>
@@ -804,11 +814,12 @@
           <button type="button" class="btn solid" id="step-next" onclick="stepNext()">Next</button>
           <button type="submit" class="btn solid" id="step-submit" style="display:none;">Seal It</button>
         </div>
+        <p class="rate-limit-note" id="rate-limit-note">You just sealed a letter. Please wait a bit before sealing another one.</p>
       </form>
 
       <div class="side-note">
         <h4>Before you seal it</h4>
-        <p>Once sealed, your letter is locked until the date you choose — it stays saved right here so you can come back and open it later.</p>
+        <p>Once sealed, your letter is locked until the date you choose — it's saved to our database so you can find it again from any device using the email you gave.</p>
         <p>We're also collecting your email/phone now so real automatic delivery (no need to remember this site) can be switched on later, without asking everyone to resubmit.</p>
         <p>Nobody else reads it. Write it for you, not for anyone grading it.</p>
         <p>Not sure what to write? Try: what today looks like, what you're scared of, what you're proud of, or a question for your future self.</p>
@@ -848,13 +859,22 @@
     <div class="page-head">
       <div class="kicker reveal r1" style="margin-bottom:16px;">STEP THREE — RETURN</div>
       <h2 class="headline">My Capsules</h2>
-      <p>Every letter you've sealed lives here. Locked ones stay locked until their date — once it passes, you can open and read them.</p>
+      <p>Enter the email you used when sealing your letter to find everything tied to it — this works from any device, no account needed.</p>
       <p class="stats-line" id="capsules-stats-line"><span class="stats-dot"></span><span id="capsules-stats-text"></span></p>
     </div>
 
-    <div id="capsules-loading" class="loading-line">Gathering your letters…</div>
+    <div class="paper-card" id="lookup-card" style="max-width:520px; margin-bottom:44px;">
+      <div class="field" id="field-lookup-email" style="margin-bottom:18px;">
+        <label for="input-lookup-email">Your email</label>
+        <input type="email" id="input-lookup-email" placeholder="you@example.com" maxlength="120" autocomplete="email">
+        <div class="field-error-msg">Please enter a valid email address.</div>
+      </div>
+      <button class="btn solid" type="button" onclick="lookupByEmail()" id="lookup-btn">Find My Capsules</button>
+    </div>
+
+    <div id="capsules-loading" class="loading-line" style="display:none;">Gathering your letters…</div>
     <div id="capsules-empty" class="empty-state" style="display:none;">
-      <p class="lede">You haven't sealed a letter yet.</p>
+      <p class="lede" id="capsules-empty-text">No capsules found for that email yet.</p>
       <button class="btn solid" onclick="showView('write')">Write Your First Letter</button>
     </div>
     <div id="capsules-list" class="capsule-list" style="display:none;"></div>
@@ -881,135 +901,163 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
   /* =========================================================================
-     STORAGE — REAL localStorage, WORKS ON ANY HOSTING
+     STORAGE — ARCHITECTURE NOTE (kept short on purpose; see firestore.rules
+     and SECURITY-README.md that ship alongside this file for the full story)
      -------------------------------------------------------------------------
-     `window.storage` (get/set/delete/list) only exists inside Claude's own
-     artifact preview — it does NOT exist once this file is hosted on your
-     own site or opened directly in a browser. So this whole app now uses
-     the browser's real, built-in `localStorage` instead, wrapped below to
-     look just like the old API. This means:
-       - "Seal It" really saves the letter in the visitor's own browser.
-       - "My Capsules" really reads it back, on that same device/browser.
-       - Nothing here needs Claude.ai to work — you can upload this .html
-         anywhere (school site, GitHub Pages, etc.) and it just works.
+     - PRIMARY DATABASE: Cloud Firestore. Every sealed letter is written
+       there (saveCapsuleToFirestore) and that is the source of truth.
+     - LOOKUP MODEL: there are no accounts/passwords. "My Capsules" asks for
+       the email the student typed when sealing, and queries Firestore for
+       capsules whose `email` field matches it (lookupByEmail). This only
+       works as well as the matching Firestore Security Rules allow — see
+       firestore.rules. Without real login, anyone who knows/guesses a
+       student's email could look up their capsules too; that trade-off is
+       the price of not requiring an account, and it's mitigated (not
+       eliminated) by the rules restricting queries to exact email matches
+       and disallowing dumping the whole collection.
+     - LOCAL CACHE: `localDB` (a thin wrapper over the browser's real
+       localStorage) is kept only as a best-effort local cache/fallback. It
+       is NOT the source of truth and nothing in the UI depends on it being
+       present.
+  ========================================================================= */
 
-     LIMITATION TO KNOW ABOUT: localStorage is per-browser, per-device. It
-     is NOT shared across different students' phones/computers, and it can
-     be cleared if someone clears their browser data. That's fine for
-     testing and for "my own capsules on my own device," but it is NOT a
-     substitute for a real backend if you want capsules to survive across
-     devices or to actually deliver emails/texts on the unlock date.
-
-     WHEN YOU'RE READY FOR A REAL BACKEND:
-       1. Search this file for "requestDelivery" — that's the clearly
-          marked stub where your real email/SMS API call goes.
-       2. Replace the body of `localDB` below with real fetch() calls to
-          your backend (e.g. GET/POST to your own server or a service like
-          Firebase/Supabase) instead of localStorage — every place that
-          calls `localDB.get/set/delete/list` elsewhere in this file stays
-          exactly the same, since they all just await the same shape of
-          response ({ key, value } etc.).
   // ============================================================================
-// FIREBASE — REAL CLOUD DATABASE (Cloud Firestore)
-// Uses the Firebase browser/CDN module SDK you provided.
-// ============================================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyDOP7TFmloiZ9hzkb-y5m-bRSEOnN7riAU",
-  authDomain: "timecapsule-4e6ea.firebaseapp.com",
-  projectId: "timecapsule-4e6ea",
-  storageBucket: "timecapsule-4e6ea.firebasestorage.app",
-  messagingSenderId: "960462051562",
-  appId: "1:960462051562:web:e4fec01e0f3c40f8b7df93",
-  measurementId: "G-WQXEB9759X"
-};
-
-// Dynamic imports avoid changing the rest of your current script structure.
-const firebaseReady = (async function(){
-  const appSDK = await import("https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js");
-  const firestoreSDK = await import("https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js");
-
-  const app = appSDK.initializeApp(firebaseConfig);
-  const db = firestoreSDK.getFirestore(app);
-
-  // Analytics is optional. A problem with Analytics must never block Firestore.
-  import("https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js")
-    .then(({ getAnalytics }) => {
-      try { getAnalytics(app); } catch(e) { console.warn('Firebase Analytics unavailable:', e); }
-    })
-    .catch(e => console.warn('Firebase Analytics could not load:', e));
-
-  return { app, db, firestore: firestoreSDK };
-})();
-
-const BROWSER_OWNER_KEY = 'timecapsule-browser-owner-id';
-function getBrowserOwnerId(){
-  try{
-    let id = localStorage.getItem(BROWSER_OWNER_KEY);
-    if(!id){
-      id = (globalThis.crypto && crypto.randomUUID)
-        ? crypto.randomUUID()
-        : 'browser-' + Date.now() + '-' + Math.random().toString(36).slice(2);
-      localStorage.setItem(BROWSER_OWNER_KEY, id);
-    }
-    return id;
-  }catch(e){
-    return 'browser-' + Date.now() + '-' + Math.random().toString(36).slice(2);
-  }
-}
-
-async function saveCapsuleToFirestore(capsule){
-  const { db, firestore } = await firebaseReady;
-  const unlockDate = new Date(capsule.unlockDate + 'T00:00:00');
-
-  const cloudData = {
-    capsuleId: capsule.capsuleId,
-    sealHue: capsule.sealHue,
-    sealRotate: capsule.sealRotate,
-    batch: capsule.batch || '',
-    title: capsule.title,
-    body: capsule.body,
-    unlockDate: capsule.unlockDate,
-    unlockAt: firestore.Timestamp.fromDate(unlockDate),
-    deliveryMethod: capsule.deliveryMethod,
-    email: capsule.email || '',
-    phone: capsule.phone || '',
-    ownerId: getBrowserOwnerId(),
-    opened: false,
-    createdDate: capsule.createdAt,
-    createdAt: firestore.serverTimestamp(),
-    schemaVersion: 1
+  // FIREBASE — REAL CLOUD DATABASE (Cloud Firestore)
+  // ============================================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyDOP7TFmloiZ9hzkb-y5m-bRSEOnN7riAU",
+    authDomain: "timecapsule-4e6ea.firebaseapp.com",
+    projectId: "timecapsule-4e6ea",
+    storageBucket: "timecapsule-4e6ea.firebasestorage.app",
+    messagingSenderId: "960462051562",
+    appId: "1:960462051562:web:e4fec01e0f3c40f8b7df93",
+    measurementId: "G-WQXEB9759X"
   };
 
-  const docRef = await firestore.addDoc(
-    firestore.collection(db, 'capsules'),
-    cloudData
-  );
+  const firebaseReady = (async function(){
+    const appSDK = await import("https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js");
+    const firestoreSDK = await import("https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js");
 
-  // Preserve your existing capsuleId; store Firestore's ID separately.
-  capsule.firestoreId = docRef.id;
-  return docRef.id;
-}
+    const app = appSDK.initializeApp(firebaseConfig);
+    const db = firestoreSDK.getFirestore(app);
 
-async function markCapsuleOpenedInFirestore(capsule){
-  if(!capsule || !capsule.firestoreId) return;
-  const { db, firestore } = await firebaseReady;
-  await firestore.updateDoc(
-    firestore.doc(db, 'capsules', capsule.firestoreId),
-    { opened: true, openedAt: firestore.serverTimestamp() }
-  );
-}
+    // Analytics is optional. A problem with Analytics must never block Firestore.
+    import("https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js")
+      .then(({ getAnalytics }) => {
+        try { getAnalytics(app); } catch(e) { console.warn('Firebase Analytics unavailable:', e); }
+      })
+      .catch(e => console.warn('Firebase Analytics could not load:', e));
 
-const localDB = {
+    return { app, db, firestore: firestoreSDK };
+  })();
+
+  const BROWSER_OWNER_KEY = 'timecapsule-browser-owner-id';
+  function getBrowserOwnerId(){
+    try{
+      let id = localStorage.getItem(BROWSER_OWNER_KEY);
+      if(!id){
+        id = (globalThis.crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : 'browser-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        localStorage.setItem(BROWSER_OWNER_KEY, id);
+      }
+      return id;
+    }catch(e){
+      return 'browser-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    }
+  }
+
+  // ---- lightweight input sanitizing helpers (defense in depth) ----
+  function stripControlChars(str){
+    return String(str).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+  }
+  function clamp(str, max){
+    str = stripControlChars(str);
+    return str.length > max ? str.slice(0, max) : str;
+  }
+  function normalizeEmail(email){
+    return stripControlChars(String(email)).trim().toLowerCase().slice(0, 120);
+  }
+
+  async function saveCapsuleToFirestore(capsule){
+    const { db, firestore } = await firebaseReady;
+    const unlockDate = new Date(capsule.unlockDate + 'T00:00:00');
+
+    const cloudData = {
+      capsuleId: capsule.capsuleId,
+      sealHue: capsule.sealHue,
+      sealRotate: capsule.sealRotate,
+      batch: clamp(capsule.batch || '', 40),
+      title: clamp(capsule.title, 80),
+      body: clamp(capsule.body, 6000),
+      unlockDate: capsule.unlockDate,
+      unlockAt: firestore.Timestamp.fromDate(unlockDate),
+      deliveryMethod: capsule.deliveryMethod,
+      email: normalizeEmail(capsule.email || ''),
+      phone: clamp(capsule.phone || '', 20),
+      ownerId: getBrowserOwnerId(),
+      opened: false,
+      createdDate: capsule.createdAt,
+      createdAt: firestore.serverTimestamp(),
+      schemaVersion: 1
+    };
+
+    const docRef = await firestore.addDoc(
+      firestore.collection(db, 'capsules'),
+      cloudData
+    );
+
+    capsule.firestoreId = docRef.id;
+    return docRef.id;
+  }
+
+  async function markCapsuleOpenedInFirestore(capsule){
+    if(!capsule || !capsule.firestoreId) return;
+    const { db, firestore } = await firebaseReady;
+    await firestore.updateDoc(
+      firestore.doc(db, 'capsules', capsule.firestoreId),
+      { opened: true, openedAt: firestore.serverTimestamp() }
+    );
+  }
+
+  async function findCapsulesByEmail(email){
+    const { db, firestore } = await firebaseReady;
+    const q = firestore.query(
+      firestore.collection(db, 'capsules'),
+      firestore.where('email', '==', email)
+    );
+    const snap = await firestore.getDocs(q);
+    const results = [];
+    snap.forEach(docSnap => {
+      const d = docSnap.data();
+      results.push({
+        id: docSnap.id,
+        firestoreId: docSnap.id,
+        capsuleId: d.capsuleId,
+        sealHue: d.sealHue,
+        sealRotate: d.sealRotate,
+        batch: d.batch,
+        title: d.title,
+        body: d.body,
+        unlockDate: d.unlockDate,
+        deliveryMethod: d.deliveryMethod,
+        email: d.email,
+        createdAt: d.createdDate,
+        opened: !!d.opened
+      });
+    });
+    return results;
+  }
+
+  const localDB = {
     async get(key, shared){
       try{
         const raw = localStorage.getItem(key);
-        if(raw === null) return null; // matches "key not found" behavior
+        if(raw === null) return null;
         return { key, value: raw, shared: !!shared };
-      }catch(e){ return null; } // e.g. localStorage disabled/blocked
+      }catch(e){ return null; }
     },
     async set(key, value, shared){
       try{
@@ -1035,19 +1083,9 @@ const localDB = {
     }
   };
 
-  /* =========================================================================
-     DEMO / STATIC-DATA SWITCHES
-     -------------------------------------------------------------------------
-     The "Seal It" flow, "My Capsules", and Capsule ID / wax-seal variation
-     are all really working now (via localDB above) — none of that is fake.
-
-     Cloud Firestore is now the real backend for sealed capsules and the
-     community sealed/opened counters. localDB remains as a compatibility
-     cache so the existing My Capsules UI keeps working without a redesign.
-  ========================================================================= */
-  const DEMO_STATIC_STATS = false;         // Firestore connected: use real shared counts
-  const DEMO_SEALED_COUNT = 12;            // fake "students who sealed a letter" count
-  const DEMO_OPENED_COUNT = 0;             // fake "letters already opened" count
+  const DEMO_STATIC_STATS = false;
+  const DEMO_SEALED_COUNT = 12;
+  const DEMO_OPENED_COUNT = 0;
 
   /* ---------- MOBILE NAV DROPDOWN ---------- */
   function toggleNav(){
@@ -1188,7 +1226,10 @@ const localDB = {
 
     if(name === 'capsules'){
       document.getElementById('letter-reveal-slot').innerHTML = '';
-      renderCapsules();
+      document.getElementById('capsules-loading').style.display = 'none';
+      document.getElementById('capsules-empty').style.display = 'none';
+      document.getElementById('capsules-list').style.display = 'none';
+      document.getElementById('capsules-list').innerHTML = '';
       updateStatsDisplay();
     }
     if(name === 'write'){
@@ -1295,7 +1336,6 @@ const localDB = {
       );
     }catch(e){
       console.warn('Could not update Firestore stats:', e);
-      /* stats are best-effort; never block sealing or opening */
     }
   }
 
@@ -1303,13 +1343,9 @@ const localDB = {
     let sealed, opened;
 
     if(DEMO_STATIC_STATS){
-      // ---- STATIC / FAKE NUMBERS (active right now) ----
       sealed = DEMO_SEALED_COUNT;
       opened = DEMO_OPENED_COUNT;
     } else {
-      // ---- REAL SHARED-STORAGE NUMBERS ----
-      // This is the original live version. Flip DEMO_STATIC_STATS to
-      // false above and this block runs instead of the fake numbers.
       sealed = await getSharedCounter('stats:total-sealed');
       opened = await getSharedCounter('stats:total-opened');
     }
@@ -1352,17 +1388,45 @@ const localDB = {
     ['field-date','field-body','field-email','field-phone'].forEach(id => document.getElementById(id).classList.remove('error'));
   }
 
+  // ---- client-side rate limiting: one seal every 20 seconds per browser ----
+  // This is a UX nicety, NOT real security — a determined abuser can clear
+  // localStorage or use another browser. Real abuse prevention has to live
+  // in Firestore Rules + (ideally) Firebase App Check; see SECURITY-README.md.
+  const RATE_LIMIT_MS = 20000;
+  function isRateLimited(){
+    try{
+      const last = Number(localStorage.getItem('timecapsule-last-seal') || 0);
+      return (Date.now() - last) < RATE_LIMIT_MS;
+    }catch(e){ return false; }
+  }
+  function markSealTimestamp(){
+    try{ localStorage.setItem('timecapsule-last-seal', String(Date.now())); }catch(e){}
+  }
+
   form.addEventListener('submit', function(e){
     e.preventDefault();
     clearFormErrors();
+    document.getElementById('rate-limit-note').classList.remove('show');
 
-    const batch = document.getElementById('input-batch').value.trim();
+    // Honeypot check — bots tend to fill every field, humans never see this one.
+    const hp = document.getElementById('input-hp').value;
+    if(hp){
+      // Pretend nothing happened; don't tip the bot off.
+      return;
+    }
+
+    if(isRateLimited()){
+      document.getElementById('rate-limit-note').classList.add('show');
+      return;
+    }
+
+    const batch = clamp(document.getElementById('input-batch').value.trim(), 40);
     const date = document.getElementById('input-date').value;
     const deliveryMethod = inputDelivery.value;
-    const email = document.getElementById('input-email').value.trim();
-    const phone = document.getElementById('input-phone').value.trim();
-    const title = document.getElementById('input-title').value.trim() || 'Dear Future Me';
-    const body = document.getElementById('input-body').value.trim();
+    const email = normalizeEmail(document.getElementById('input-email').value.trim());
+    const phone = clamp(document.getElementById('input-phone').value.trim(), 20);
+    const title = clamp(document.getElementById('input-title').value.trim() || 'Dear Future Me', 80);
+    const body = clamp(document.getElementById('input-body').value.trim(), 6000);
 
     let hasError = false;
     if(!date || date < todayISO()){
@@ -1392,6 +1456,7 @@ const localDB = {
     sealCapsule({ batch, date, deliveryMethod, email, phone, title, body })
       .then((capsule)=>{
         sealedCapsule = capsule;
+        markSealTimestamp();
         return playSealAnimation(capsule);
       })
       .then(()=>{
@@ -1419,10 +1484,6 @@ const localDB = {
       });
   });
 
-  /**
-   * Plays the fold → seal → stamp animation. Skips straight through for
-   * people who have reduced motion enabled, so nothing ever blocks on it.
-   */
   function playSealAnimation(capsule){
     const overlay = document.getElementById('seal-overlay');
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1458,24 +1519,6 @@ const localDB = {
     });
   }
 
-  /**
-   * STUB — not wired to a real email/SMS provider yet.
-   * The capsule is already saved locally (localDB / localStorage) regardless of
-   * what happens here, so nothing breaks if this stays a no-op. When a
-   * real backend exists, replace the body of this function with a
-   * fetch() call to that API — the capsule object already carries
-   * everything it needs: email, phone, deliveryMethod, unlockDate,
-   * title, body, createdAt.
-   *
-   * Example of what this would look like later (left here so you can
-   * just uncomment and fill in your real endpoint):
-   *
-   *   await fetch('https://your-delivery-api.example.com/schedule', {
-   *     method: 'POST',
-   *     headers: { 'Content-Type': 'application/json' },
-   *     body: JSON.stringify(capsule)
-   *   });
-   */
   async function requestDelivery(capsule){
     // TODO: wire up real email/SMS delivery here.
     return Promise.resolve({ scheduled: false, reason: 'delivery API not connected yet' });
@@ -1510,15 +1553,11 @@ const localDB = {
       createdAt: todayISO(),
       opened: false
     };
-    // PRIMARY SAVE: Cloud Firestore is now the real database.
-    // A failed cloud write stops the seal flow so the UI never pretends it was saved.
+
     await saveCapsuleToFirestore(capsule);
 
-    // LOCAL CACHE: retained only so your current My Capsules UI works unchanged.
     const setResult = await localDB.set('capsule:' + id, JSON.stringify(capsule), false);
-    if(!setResult){
-      console.warn('Capsule is in Firestore, but local cache could not be written.');
-    } else {
+    if(setResult){
       const ids = await getCapsuleIds();
       if(!ids.includes(id)) ids.push(id);
       await localDB.set('capsule-ids', JSON.stringify(ids), false);
@@ -1526,9 +1565,6 @@ const localDB = {
 
     try{ await requestDelivery(capsule); }catch(e){ /* stub — never blocks sealing */ }
 
-    // Only feed the REAL shared counter while we're not showing the demo
-    // numbers, so switching DEMO_STATIC_STATS back to false later shows an
-    // honest count instead of a mix of real + fake sealed letters.
     if(!DEMO_STATIC_STATS){
       bumpSharedCounter('stats:total-sealed');
     }
@@ -1536,40 +1572,52 @@ const localDB = {
     return capsule;
   }
 
-  async function renderCapsules(){
+  /* ---------- EMAIL LOOKUP ("My Capsules", no accounts) ---------- */
+  async function lookupByEmail(){
+    const emailInput = document.getElementById('input-lookup-email');
+    const email = normalizeEmail(emailInput.value);
+    document.getElementById('field-lookup-email').classList.remove('error');
+
+    if(!isValidEmail(email)){
+      document.getElementById('field-lookup-email').classList.add('error');
+      return;
+    }
+
+    const btn = document.getElementById('lookup-btn');
     const loadingEl = document.getElementById('capsules-loading');
     const emptyEl = document.getElementById('capsules-empty');
     const listEl = document.getElementById('capsules-list');
 
+    btn.disabled = true;
+    document.getElementById('letter-reveal-slot').innerHTML = '';
     loadingEl.style.display = 'block';
     emptyEl.style.display = 'none';
     listEl.style.display = 'none';
     listEl.innerHTML = '';
 
-    let ids = [];
+    let capsules = [];
     try{
-      ids = await getCapsuleIds();
+      capsules = await findCapsulesByEmail(email);
     }catch(e){
-      console.error('Could not load capsule list:', e);
-    }
-
-    const capsules = [];
-    for(const id of ids){
-      try{
-        const res = await localDB.get('capsule:' + id, false);
-        if(res && res.value) capsules.push(JSON.parse(res.value));
-      }catch(e){
-        /* skip missing/corrupted entry */
-      }
+      console.error('Could not look up capsules:', e);
     }
 
     loadingEl.style.display = 'none';
+    btn.disabled = false;
 
     if(capsules.length === 0){
+      document.getElementById('capsules-empty-text').textContent =
+        'No capsules found for that email yet.';
       emptyEl.style.display = 'block';
       return;
     }
 
+    renderCapsuleList(capsules);
+  }
+
+  function renderCapsuleList(capsules){
+    const listEl = document.getElementById('capsules-list');
+    listEl.innerHTML = '';
     capsules.sort((a,b) => a.unlockDate.localeCompare(b.unlockDate));
 
     listEl.style.display = 'flex';
@@ -1628,19 +1676,12 @@ const localDB = {
     if(!cap.opened){
       cap.opened = true;
       try{
-        await localDB.set('capsule:' + cap.id, JSON.stringify(cap), false);
-        try{
-          await markCapsuleOpenedInFirestore(cap);
-        }catch(e){
-          console.warn('Could not mark Firestore capsule as opened:', e);
-        }
-        // Same rule as sealing: only touch the real counter when we're
-        // not in demo mode, so the two data sources never mix.
+        await markCapsuleOpenedInFirestore(cap);
         if(!DEMO_STATIC_STATS){
           await bumpSharedCounter('stats:total-opened');
         }
         updateStatsDisplay();
-      }catch(e){ /* non-critical */ }
+      }catch(e){ console.warn('Could not mark capsule as opened:', e); }
     }
   }
 </script>
