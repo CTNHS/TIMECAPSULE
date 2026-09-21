@@ -120,10 +120,10 @@
   /* ---------- HERO ---------- */
   .hero{ position:relative; z-index:2; padding:110px 0 60px; overflow:hidden; }
   .hero .wrap{ display:grid; grid-template-columns:1.05fr 0.95fr; gap:40px; align-items:center; }
-  .hero-copy{ min-width:0; }
+  .hero-copy{ min-width:0; display:flex; flex-direction:column; align-items:center; text-align:center; }
   .hero-copy .kicker{
     font-size:13px; letter-spacing:0.14em; color:var(--gold); margin-bottom:22px;
-    display:flex; align-items:center; justify-content:flex-start; gap:12px;
+    display:flex; align-items:center; justify-content:center; gap:12px;
     flex-wrap:nowrap; white-space:nowrap;
   }
   .hero-copy .kicker::before, .hero-copy .kicker::after{
@@ -142,8 +142,9 @@
   .hero-copy p.lede{
     font-size:clamp(16px, 2vw, 19px); color:var(--ink); max-width:420px;
     line-height:1.65; margin-bottom:38px; font-weight:300;
+    margin-left:auto; margin-right:auto;
   }
-  .hero-actions{ display:flex; flex-direction:column; align-items:flex-start; gap:22px; }
+  .hero-actions{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:22px; }
   .hero-actions .btn.solid{ padding:15px 34px; font-size:14.5px; }
   .fine-line{
     font-family:'Cormorant Garamond', serif; font-style:italic; font-size:16.5px;
@@ -384,6 +385,7 @@
     nav.nav-links{gap:20px;}
     .closing .wrap{flex-direction:column;align-items:flex-start;}
     .letter-layout{ grid-template-columns:1fr; }
+    .hero-copy .kicker{ white-space:normal; flex-wrap:wrap; row-gap:4px; }
   }
 
   @media (max-width:680px){
@@ -424,7 +426,11 @@
     .hero{padding:44px 0 24px;}
     .envelope-stage{padding:10px;}
     .envelope-stage svg{max-width:300px;}
-    .hero-copy .kicker{font-size:11.5px;letter-spacing:0.14em;}
+    .hero-copy .kicker{
+      font-size:10.5px; letter-spacing:0.08em;
+      white-space:normal; flex-wrap:wrap; row-gap:4px;
+    }
+    .hero-copy .kicker::before, .hero-copy .kicker::after{ display:none; }
     .hero-copy p.lede{max-width:none;}
     .hero-actions .btn.solid{width:100%;justify-content:center;padding:15px 20px;}
     .steps{padding:64px 0 80px;}
@@ -568,6 +574,73 @@
 
   .hp-field{ position:absolute !important; left:-9999px !important; top:-9999px !important; width:1px; height:1px; overflow:hidden; }
 
+  /* ---------- BIG REAL-TIME STAT CARD (home hero) ---------- */
+  .stat-card{
+    position:relative;
+    display:inline-flex; flex-direction:column; align-items:center; text-align:center;
+    gap:10px;
+    margin-top:6px;
+    padding:30px 46px;
+    border-radius:18px;
+    border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(251,248,241,0.95), rgba(241,234,217,0.9));
+    box-shadow:0 26px 50px -28px rgba(92,68,51,0.4), inset 0 1px 0 rgba(255,255,255,0.65);
+    overflow:hidden;
+    isolation:isolate;
+  }
+  .stat-card::before{
+    content:"";
+    position:absolute; inset:0; z-index:-1;
+    background:
+      radial-gradient(circle at 18% 15%, rgba(201,166,107,0.16), transparent 55%),
+      radial-gradient(circle at 85% 85%, rgba(78,59,112,0.12), transparent 55%);
+  }
+  .stat-card-shine{
+    position:absolute; top:0; left:-60%; width:35%; height:100%;
+    background:linear-gradient(115deg, transparent, rgba(255,255,255,0.55), transparent);
+    transform:skewX(-18deg);
+    animation:statShine 6s ease-in-out infinite;
+    pointer-events:none;
+  }
+  @keyframes statShine{
+    0%{ left:-60%; }
+    28%{ left:130%; }
+    100%{ left:130%; }
+  }
+  .stat-live-badge{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:10.5px; letter-spacing:0.16em; font-weight:400;
+    color:#3E7F53;
+    background:rgba(95,174,122,0.14);
+    border:1px solid rgba(95,174,122,0.25);
+    padding:5px 12px; border-radius:100px;
+  }
+  .stat-live-dot{
+    position:relative; width:7px; height:7px; border-radius:50%; flex-shrink:0;
+    background:#5FAE7A;
+    box-shadow:0 0 0 0 rgba(95,174,122,0.55);
+    animation:statsPulse 2.2s ease-out infinite;
+  }
+  .stat-number{
+    font-family:'Cormorant Garamond', serif; font-style:italic; font-weight:500;
+    font-size:clamp(48px, 8vw, 80px); line-height:1;
+    background:linear-gradient(135deg, var(--brown) 0%, var(--plum) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    letter-spacing:0.01em;
+    transition: transform .25s ease;
+  }
+  .stat-number.bump{ animation:statBump .55s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes statBump{ 0%{transform:scale(1);} 35%{transform:scale(1.1);} 100%{transform:scale(1);} }
+  .stat-label{
+    font-size:13px; color:var(--cocoa); letter-spacing:0.01em;
+    max-width:230px; line-height:1.5;
+  }
+  @media (max-width:560px){
+    .stat-card{ padding:24px 30px; width:100%; }
+    .stat-number{ font-size:clamp(40px, 13vw, 58px); }
+    .stat-label{ max-width:none; }
+  }
+
   .rate-limit-note{ font-size:12.5px; color:var(--error); margin-top:14px; display:none; }
   .rate-limit-note.show{ display:block; }
 
@@ -605,13 +678,21 @@
     <div class="dot" style="width:5px;height:5px;top:40%;left:96%;"></div>
     <div class="wrap">
       <div class="hero-copy">
-        <div class="kicker reveal r1">CAMP TINIO NATIONAL HIGH SCHOOL, CABANATUAN CITY</div>
+        <div class="kicker reveal r1">CAMP TINIO NATIONAL HIGH SCHOOL — CABANATUAN CITY</div>
         <h1 class="headline reveal r2">Dear Future Me,</h1>
         <p class="lede reveal r3">A little piece of who you are today, waiting for you in the future.</p>
         <div class="hero-actions reveal r4">
           <button class="btn solid" onclick="showView('write')">Write Your Letter</button>
           <p class="fine-line">Write it. Seal it. Live your life. Come back when the time is right.</p>
-          <p class="stats-line" id="home-stats-line"><span class="stats-dot"></span><span id="home-stats-text">Loading capsule stats…</span></p>
+          <div class="stat-card" id="home-stat-block">
+            <div class="stat-card-shine" aria-hidden="true"></div>
+            <div class="stat-live-badge">
+              <span class="stat-live-dot" aria-hidden="true"></span>
+              <span>LIVE</span>
+            </div>
+            <div class="stat-number" id="home-stat-number">0</div>
+            <div class="stat-label" id="home-stat-label">students have already sealed a letter for their future self</div>
+          </div>
         </div>
       </div>
 
@@ -1309,21 +1390,16 @@
     return 'hsl(' + (22 + (hue % 40)) + ', 55%, 45%)';
   }
 
-  /* ---------- SHARED COMMUNITY STATS (numbers only, no letter content) ---------- */
-  async function getSharedCounter(key){
-    try{
-      const { db, firestore } = await firebaseReady;
-      const snap = await firestore.getDoc(firestore.doc(db, 'siteStats', 'community'));
-      if(!snap.exists()) return 0;
-      const data = snap.data() || {};
-      if(key === 'stats:total-sealed') return Number(data.totalSealed || 0);
-      if(key === 'stats:total-opened') return Number(data.totalOpened || 0);
-      return 0;
-    }catch(e){
-      console.warn('Could not read Firestore stats:', e);
-      return 0;
-    }
-  }
+  /* ---------- SHARED COMMUNITY STATS (numbers only, no letter content) ----------
+     Real-time via Firestore onSnapshot: one listener on the single
+     siteStats/community document, kept open for the life of the page. Every
+     write anyone makes to that counter (sealing/opening a capsule) pushes an
+     update straight to every open tab — no polling, no manual refresh. */
+  let latestSealed = 0;
+  let latestOpened = 0;
+  let statsListenerStarted = false;
+  let displayedStatNumber = null; // last value actually shown, for count-up animation
+
   async function bumpSharedCounter(key){
     try{
       const { db, firestore } = await firebaseReady;
@@ -1339,31 +1415,92 @@
     }
   }
 
-  async function updateStatsDisplay(){
-    let sealed, opened;
-
-    if(DEMO_STATIC_STATS){
-      sealed = DEMO_SEALED_COUNT;
-      opened = DEMO_OPENED_COUNT;
-    } else {
-      sealed = await getSharedCounter('stats:total-sealed');
-      opened = await getSharedCounter('stats:total-opened');
+  function animateStatNumber(el, from, to, duration){
+    const start = performance.now();
+    function frame(now){
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const current = Math.round(from + (to - from) * eased);
+      el.textContent = current.toLocaleString();
+      if(t < 1){
+        requestAnimationFrame(frame);
+      } else {
+        el.textContent = to.toLocaleString();
+      }
     }
-
-    const waiting = Math.max(sealed - opened, 0);
-    let text;
-    if(sealed === 0){
-      text = 'Be the first to seal a letter for your future self.';
-    } else {
-      text = sealed + ' student' + (sealed === 1 ? ' has' : 's have') + ' already sealed something for their future self' +
-        (waiting > 0 ? ' — ' + waiting + ' still waiting to be opened.' : '.');
-    }
-    const l1 = document.getElementById('home-stats-text');
-    const l2 = document.getElementById('capsules-stats-text');
-    if(l1) l1.textContent = text;
-    if(l2) l2.textContent = text;
+    requestAnimationFrame(frame);
   }
-  updateStatsDisplay();
+
+  function renderStatsUI(){
+    const sealed = latestSealed;
+    const opened = latestOpened;
+    const waiting = Math.max(sealed - opened, 0);
+
+    // Big animated number on the home hero
+    const numEl = document.getElementById('home-stat-number');
+    const labelEl = document.getElementById('home-stat-label');
+    if(numEl){
+      const from = displayedStatNumber === null ? 0 : displayedStatNumber;
+      if(from !== sealed){
+        animateStatNumber(numEl, from, sealed, 900);
+        numEl.classList.remove('bump');
+        void numEl.offsetWidth; // restart animation
+        numEl.classList.add('bump');
+      }
+      displayedStatNumber = sealed;
+    }
+    if(labelEl){
+      labelEl.textContent = sealed === 1
+        ? 'student has already sealed a letter for their future self'
+        : 'students have already sealed a letter for their future self';
+    }
+
+    // Small line on the My Capsules page stays as plain text
+    const l2 = document.getElementById('capsules-stats-text');
+    if(l2){
+      let text;
+      if(sealed === 0){
+        text = 'Be the first to seal a letter for your future self.';
+      } else {
+        text = sealed + ' student' + (sealed === 1 ? ' has' : 's have') + ' already sealed something for their future self' +
+          (waiting > 0 ? ' — ' + waiting + ' still waiting to be opened.' : '.');
+      }
+      l2.textContent = text;
+    }
+  }
+
+  async function startStatsListener(){
+    if(DEMO_STATIC_STATS){
+      latestSealed = DEMO_SEALED_COUNT;
+      latestOpened = DEMO_OPENED_COUNT;
+      renderStatsUI();
+      return;
+    }
+    if(statsListenerStarted) return;
+    statsListenerStarted = true;
+    try{
+      const { db, firestore } = await firebaseReady;
+      const statsRef = firestore.doc(db, 'siteStats', 'community');
+      firestore.onSnapshot(statsRef, (snap)=>{
+        const data = snap.exists() ? (snap.data() || {}) : {};
+        latestSealed = Number(data.totalSealed || 0);
+        latestOpened = Number(data.totalOpened || 0);
+        renderStatsUI();
+      }, (err)=>{
+        console.warn('Stats listener error:', err);
+      });
+    }catch(e){
+      console.warn('Could not start stats listener:', e);
+    }
+  }
+  startStatsListener();
+
+  // Kept for compatibility with the few places that used to call this after
+  // a seal/open — the listener above already keeps things current, so this
+  // just re-renders instantly from whatever we last received.
+  function updateStatsDisplay(){
+    renderStatsUI();
+  }
   function escapeHtml(str){
     return String(str).replace(/[&<>"']/g, ch => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
